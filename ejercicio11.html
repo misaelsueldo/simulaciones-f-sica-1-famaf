@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lab Virtual: Choque de Discos (Guía Interactiva Formalizada)</title>
+
+    <!-- Estilos fusionados del simulador y la formalización -->
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background-color: #f0f3f5; 
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; margin-top: 0; font-style: italic; margin-bottom: 25px;}
+        
+        /* Layout del Simulador: canvas arriba, paneles de control en grilla debajo */
+        .simulator-layout {
+            margin-bottom: 30px;
+        }
+        .canvas-column {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        canvas { 
+            border: 2px solid #bdc3c7; 
+            background-color: #fcfcfc; 
+            border-radius: 8px;
+            display: block;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+            text-align: left;
+        }
+
+        /* Controles */
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            margin-bottom: 0;
+        }
+        .control-group h3 { margin-top: 0; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #dee2e6; padding-bottom: 5px;}
+        button { 
+            padding: 10px 15px; 
+            font-size: 14px; 
+            font-weight: bold;
+            cursor: pointer; 
+            margin: 5px 2px; 
+            border: none;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: white;
+            transition: all 0.3s;
+        }
+        button:hover { background-color: #2980b9; transform: scale(1.03); }
+        button.btn-red { background-color: #e74c3c; }
+        button.btn-red:hover { background-color: #c0392b; }
+        button.btn-active { background-color: #2c3e50; border: 2px solid #3498db;}
+        
+        input[type=range] { width: 100%; margin-top: 10px; cursor: pointer;}
+        .data-list { list-style: none; padding: 0; font-size: 14px; }
+        .data-list li { margin: 8px 0; border-bottom: 1px solid #eee; padding-bottom: 3px;}
+        .data-label { font-weight: bold; color: #555;}
+        
+        /* Divisor */
+        .full-divisor {
+            border: 0;
+            height: 2px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+            margin: 30px 0;
+        }
+
+        /* Estilos de la Guía de Estudio */
+        .study-guide {
+            text-align: left;
+        }
+        .enunciado-column {
+            background-color: #eaf2f8;
+            padding: 20px 25px;
+            border-left: 5px solid #3498db;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .enunciado-column h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .enunciado-column ul { margin-bottom: 0; padding-left: 22px; }
+        .enunciado-column li { margin-bottom: 6px; }
+        .resolucion-column {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .resolucion-column p { margin-top: 0; }
+        .math { font-family: 'Times New Roman', Times, serif; font-size: 1.1em; font-style: italic; }
+        .math.vector { font-weight: bold; font-style: normal; color: #2c3e50;}
+        .resultado-final {
+            background-color: #eafaf1;
+            border-left: 5px solid #27ae60;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+
+    <!-- MathJax para renderizar las fórmulas. Se quitó el polyfill de polyfill.io:
+         ese dominio fue comprometido (ataque a la cadena de suministro) y ya no
+         hace falta en navegadores modernos, que soportan ES6 de forma nativa. -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Simulador Problema 11: Choque de Discos</h1>
+        <p class="subtitle">Laboratorio Virtual de Dinámica Rotacional y de Colisiones</p>
+
+        <!-- ZONA DEL SIMULADOR -->
+        <div class="simulator-layout">
+            <div class="canvas-column">
+                <canvas id="canvasSim" width="900" height="600"></canvas>
+                <p style="font-size:12px;color:#666;">La simulación se pausará automáticamente al momento del choque (ver controles).</p>
+            </div>
+
+            <div class="controls-grid">
+                <div class="control-group">
+                    <h3>🕹️ Controles de Simulación</h3>
+                    <button onclick="iniciarOpausar()" id="btnPause" class="btn-active">▶ Iniciar / ⏸ Pausar</button>
+                    <button class="btn-red" onclick="reiniciar()">🔄 Reiniciar</button>
+                    <button class="btn-active" id="btnVectors" onclick="toggleVectores()">Vectores On/Off</button>
+                    <h3 style="margin-top:18px;">💥 Comportamiento del Choque</h3>
+                    <button onclick="setChoqueModo('pause')" id="btnPauseChoque" class="btn-active">Pausar en Choque</button>
+                    <button onclick="setChoqueModo('continue')" id="btnContinueChoque">Ejecutar Continuo</button>
+                </div>
+                <div class="control-group">
+                    <h3>⚖️ Variables Físicas (Iniciales)</h3>
+                    <label>Masa (M): <span id="massValue" class="data-label">1.0</span> kg</label>
+                    <input type="range" id="massSlider" min="0.5" max="5" step="0.1" value="1" oninput="actualizarVariables()">
+                    
+                    <label>Radio (R): <span id="radiusValue" class="data-label">40</span> px</label>
+                    <input type="range" id="radiusSlider" min="20" max="80" value="40" oninput="actualizarVariables()">
+                    
+                    <label>Velocidad A (V): <span id="velocityValue" class="data-label">3.0</span> px/f</label>
+                    <input type="range" id="velocitySlider" min="1" max="10" step="0.1" value="3" oninput="actualizarVariables()">
+
+                    <h3 style="margin-top:18px;">🌀 Inciso c)</h3>
+                    <button id="btnRotA" onclick="toggleRotacionA()">Rotación previa en A: OFF</button>
+                    <p style="font-size:12px;color:#666;margin:6px 0 0 0;">Activa para que A llegue al choque girando antihorario con &omega;<sub>A</sub> = V/R. Vas a ver el espín de A antes del choque, y cómo cancela la rotación final del cuerpo rígido.</p>
+                </div>
+                <div class="control-group">
+                    <h3>📊 Datos en Tiempo Real</h3>
+                    <ul class="data-list">
+                        <li>⏱️ t: <span id="tiempoVal">0.00</span> frames</li>
+                        <li>🏁 Estado: <b><span id="estadoVal">Pre-choque</span></b></li>
+                        <li><span style="color:#c0392b;">V_A (vel):</span> (<span id="vAVal">3.0</span>, 0.0)</li>
+                        <li><span style="color:#f1c40f;">p_A (mom):</span> (<span id="pAVal">1.0</span>, 0.0)</li>
+                        <li>✖️ V_CM: (<span id="vCMVal">1.5</span>, 0.0)</li>
+                        <li><span style="color:#2c3e50;">p_total:</span> (<span id="pTotalVal">1.0</span>, 0.0)</li>
+                        <li>🌀 L_orbital: <span id="LOrbitalVal">0.0</span> kg*px²/f</li>
+                        <li>🔁 L_espín (A): <span id="LSpinVal">0.0</span> kg*px²/f</li>
+                        <li><span style="color:#2c3e50;">L_total:</span> <span id="LTotalVal">0.0</span> kg*px²/f</li>
+                        <li>🔄 &omega;<sub>final</sub> (Post): <span id="omegaFinalVal">0.00</span> rad/frame</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <hr class="full-divisor">
+
+        <!-- ZONA DEL ENUNCIADO Y GUÍA DE ESTUDIO -->
+        <h2>Guía de Estudio Interactiva (Problema 11)</h2>
+        <div class="study-guide">
+            <div class="enunciado-column">
+                <h3>📝 Boceto y Enunciado</h3>
+                <p>Un disco A, de masa <span class="math">M</span> y radio <span class="math">R</span>, desliza sobre una de sus caras planas en una superficie horizontal sin rozamiento. El disco no rota y la velocidad de su CM es <span class="math vector">v</span>.</p>
+                <p>En un determinado instante choca con otro disco B, exactamente igual, que se encuentra inicialmente en reposo. El centro del disco B está situado a una distancia <span class="math">R</span> de la recta sobre la que se mueve el centro del disco A. Después del choque ambos discos quedan unidos formando un cuerpo rígido.</p>
+                <ul>
+                    <li><strong>a)</strong> Calcule la velocidad del centro de masa del cuerpo rígido después del choque.</li>
+                    <li><strong>b)</strong> Determine la velocidad angular de rotación del cuerpo rígido después del choque.</li>
+                    <li><strong>c)</strong> Analice qué ocurre si el disco A llega al impacto con una velocidad angular propia \( \omega_A = v/R \) en sentido antihorario.</li>
+                </ul>
+            </div>
+            <div class="resolucion-column">
+                <h3>Formalización de la Dinámica del Choque</h3>
+                
+                <h4>1. Definición del Sistema y Fuerzas Externas</h4>
+                <p>Definimos el sistema \( S \) compuesto por las masas de ambos discos:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ S = \{m_A, m_B\} $$
+                </div>
+                <p>La Segunda Ley de Newton generalizada establece que la tasa de cambio de la cantidad de movimiento lineal total del sistema (\( \vec{P}_{sis} \)) es igual a la suma de las fuerzas <strong>externas</strong> que actúan sobre él:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \sum \vec{F}_{ext} = \frac{d\vec{P}_{sis}}{dt} $$
+                </div>
+                <p>En el eje vertical las fuerzas se anulan (\( \sum F_z = 0 \)) y, al no haber rozamiento, tampoco hay fuerzas externas en el plano horizontal:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \sum \vec{F}_{ext, plano} = 0 \implies \frac{d\vec{P}_{sis}}{dt} = 0 \implies \vec{P}_i = \vec{P}_f $$
+                </div>
+
+                <h4>2. El Teorema del Impulso y las Fuerzas Internas</h4>
+                <p>Durante el instante \( \Delta t \to 0 \) que dura el choque, las fuerzas impulsivas internas \( \vec{F}_{AB} \) y \( \vec{F}_{BA} \) cumplen la Tercera Ley de Newton, \( \vec{F}_{AB} = -\vec{F}_{BA} \), por lo que su impulso total es nulo. Esto es lo que garantiza que un choque, sin fuerzas impulsivas externas, nunca altera ni el momento lineal ni el momento angular totales del sistema — ambos se conservan durante la colisión.</p>
+
+                <h4>3. Inciso a) — Velocidad del Centro de Masa</h4>
+                <p>La posición del centro de masa de un sistema discreto es:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{r}_{cm} = \frac{m_A \vec{r}_A + m_B \vec{r}_B}{m_A + m_B} $$
+                </div>
+                <p>Derivando respecto al tiempo y usando \( m_A=m_B=M \), \( \vec{v}_A=\vec{v} \), \( \vec{v}_B=0 \):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{V}_{cm} = \frac{M \vec{v} + M (\vec{0})}{2M} = \frac{\vec{v}}{2} $$
+                </div>
+                <p class="resultado-final">Como el choque es perfectamente plástico, el cuerpo rígido resultante se traslada con esta misma velocidad: \( \vec{V}_{cm} = \vec{v}/2 \).</p>
+
+                <h4>4. Inciso b) — Velocidad Angular (conservación del momento angular)</h4>
+
+                <p><strong>4.1 Sistema de referencia y Centro de Masa (CM)</strong></p>
+                <p>Ubicamos el origen en el centro del disco A en el instante del impacto. Dado que la distancia entre centros al chocar es \( 2R \) y la separación perpendicular a la recta de A es \( R \), la componente a lo largo de esa recta es \( \sqrt{(2R)^2-R^2}=\sqrt{3}R \). Las posiciones de los centros son:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{r}_A = (0,\,0,\,0) \qquad \vec{r}_B = (\sqrt{3}R,\,-R,\,0) $$
+                </div>
+                <p>Como las masas son idénticas, el CM del sistema queda en el punto medio:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{r}_{cm} = \frac{M\vec{r}_A + M\vec{r}_B}{2M} = \left( \frac{\sqrt{3}}{2}R,\, -\frac{R}{2},\, 0 \right) $$
+                </div>
+
+                <p><strong>4.2 Momento de inercia total respecto al CM</strong></p>
+                <p>Ambos centros están a la misma distancia \( d=R \) del CM. Por el teorema de Steiner, sumando la contribución de los dos discos (cada uno con \( I_{centro}=\tfrac12 MR^2 \)):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ I_{cm} = \left(\frac12 MR^2 + MR^2\right)_A + \left(\frac12 MR^2 + MR^2\right)_B = \frac32 MR^2 + \frac32 MR^2 = 3MR^2 $$
+                </div>
+
+                <p><strong>4.3 Conservación del momento angular: orbital + espín</strong></p>
+                <p>Como las fuerzas impulsivas del choque son internas, su torque neto respecto al CM es nulo (\( \sum \vec\tau_{ext}=0 \)), por lo que \( \vec{L}_i=\vec{L}_f \). En general, el momento angular total respecto a un punto se descompone como:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_{total} = \vec{L}_{orbital} + \vec{L}_{esp\text{í}n} $$
+                </div>
+
+                <p><em>Antes del choque:</em> A no rota (espín nulo) y B está en reposo, así que todo \( \vec{L}_i \) es el momento angular orbital de A respecto al CM. Con \( \vec{r}'_A=\vec{r}_A-\vec{r}_{cm}=\left(-\tfrac{\sqrt3}{2}R,\,\tfrac{R}{2},\,0\right) \) y \( \vec{p}_A=MV\hat{\imath} \):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_i = \vec{r}'_A \times \vec{p}_A = \begin{vmatrix} \hat\imath & \hat\jmath & \hat k \\ -\frac{\sqrt3}{2}R & \frac{R}{2} & 0 \\ MV & 0 & 0 \end{vmatrix} = -\frac12 MVR\,\hat{k} $$
+                </div>
+
+                <p><em>Después del choque:</em> evaluado en el propio CM, el término orbital del cuerpo rígido se anula (\( \vec r'_{cm}=\vec 0 \)), y \( \vec{L}_f \) queda formado únicamente por el espín del cuerpo:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_f = I_{cm}\,\vec\omega = 3MR^2\,\omega\,\hat{k} $$
+                </div>
+
+                <p><strong>4.4 Igualación y resultado</strong></p>
+                <p>Todo el momento angular orbital inicial de A se convierte en momento angular de espín del cuerpo final:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ -\frac12 MVR\,\hat{k} = 3MR^2\,\omega\,\hat{k} \quad\implies\quad \omega = -\frac{V}{6R} $$
+                </div>
+                <p class="resultado-final">La velocidad angular tiene magnitud \( |\omega| = V/6R \); el signo negativo indica que el sentido de giro es horario (con los ejes elegidos, \( \hat k \) saliendo del plano).</p>
+                <p>Este es exactamente el valor que calcula y anima el simulador de arriba.</p>
+
+                <h4>5. Inciso c) — Efecto de una rotación previa en el disco A</h4>
+                <p>Ahora suponemos que A llega al choque con velocidad angular propia \( \omega_A = v/R \) en sentido antihorario, y analizamos qué cambia.</p>
+
+                <p><strong>5.1 El resultado del inciso a) no cambia.</strong> La velocidad del CM depende únicamente del momento lineal total, y la rotación de A no le agrega cantidad de movimiento lineal al sistema (es energía y momento angular internos):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{P}_i = M\vec v = M v\hat\imath \implies \vec P_i=\vec P_f \implies \vec V_{cm}=\frac{v}{2}\hat\imath $$
+                </div>
+
+                <p><strong>5.2 El resultado del inciso b) sí cambia.</strong> El momento angular inicial ahora tiene dos aportes: el orbital (igual que antes, por la traslación de A respecto al CM del sistema) y el de espín, generado por la rotación propia de A:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_i = \vec{L}_{orbital} + \vec{L}_{esp\text{í}n,A} $$
+                </div>
+                <p>El término orbital es el mismo que en el inciso b):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_{orbital} = -\frac12 MvR\,\hat k $$
+                </div>
+                <p>El término de espín de A, con \( I_{cm,A}=\tfrac12 MR^2 \) y \( \vec\omega_A = \tfrac{v}{R}\hat k \) (positivo, antihorario):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_{esp\text{í}n,A} = \left(\frac12 MR^2\right)\left(\frac{v}{R}\hat k\right) = +\frac12 MvR\,\hat k $$
+                </div>
+                <p>Sumando ambos términos:</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec{L}_i = \left(-\frac12 MvR\hat k\right) + \left(+\frac12 MvR\hat k\right) = \vec 0 $$
+                </div>
+                <p>Como el momento angular final vuelve a ser puramente de espín del cuerpo rígido (\( \vec L_f = I_{cm}\vec\omega_f = 3MR^2\,\omega_f\,\hat k \)) e \( \vec L_i=\vec L_f \):</p>
+                <div style="overflow-x: auto; padding: 10px 0;">
+                    $$ \vec 0 = 3MR^2\,\vec\omega_f \implies \vec\omega_f = \vec 0 $$
+                </div>
+                <p class="resultado-final">El giro antihorario propio de A cancela exactamente el momento angular orbital (horario) generado por el parámetro de impacto del choque: el cuerpo final se traslada a \( v/2 \) pero <strong>no rota</strong>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DEL SIMULADOR -->
+    <script>
+        const canvas = document.getElementById('canvasSim');
+        const ctx = canvas.getContext('2d');
+        
+        let t = 0;
+        const TIME_STEP = 0.2; // antes 0.05: la simulación iba muy lenta
+        let simulando = false;
+        let animacion;
+        let mostrarVectores = true;
+        let pauseOnCollision = true;
+
+        let M = 1; 
+        let R = 40; 
+        let V = 3; 
+        const width = canvas.width;
+        const height = canvas.height;
+        const startX_A = 100;
+        const B_x = width - 200;
+        const B_y = height / 2 + R;
+
+        let collisionDetected = false;
+        let t_collision = 0;
+        let vCM = V/2;
+        let finalOmega = 0;
+        let postCollisionAngle = 0;
+        let rotacionAActiva = false; // Inciso c): A llega girando antihorario con wA = V/R
+        let L_orbital = 0;
+        let L_spinA = 0;
+
+        function toggleRotacionA() {
+            rotacionAActiva = !rotacionAActiva;
+            const btn = document.getElementById('btnRotA');
+            btn.innerText = rotacionAActiva ? "Rotación previa en A: ON" : "Rotación previa en A: OFF";
+            btn.classList.toggle('btn-active', rotacionAActiva);
+            actualizarVariables();
+        }
+
+        function actualizarVariables() {
+            M = parseFloat(document.getElementById('massSlider').value);
+            document.getElementById('massValue').innerText = M.toFixed(1);
+            R = parseInt(document.getElementById('radiusSlider').value);
+            document.getElementById('radiusValue').innerText = R;
+            V = parseFloat(document.getElementById('velocitySlider').value);
+            document.getElementById('velocityValue').innerText = V.toFixed(1);
+            
+            vCM = V/2;
+
+            // L_orbital: aporte de la traslación de A respecto al futuro CM (sentido horario -> positivo en esta convención)
+            L_orbital = 0.5 * M * V * R;
+            // L_spinA: si A gira antihorario con wA = V/R, su espín aporta el mismo módulo pero de sentido contrario
+            L_spinA = rotacionAActiva ? -0.5 * M * V * R : 0;
+            const L_total = L_orbital + L_spinA;
+            const I_total = 3 * M * R * R;
+            finalOmega = L_total / I_total;
+
+            document.getElementById('LOrbitalVal').innerText = L_orbital.toFixed(0);
+            document.getElementById('LSpinVal').innerText = L_spinA.toFixed(0);
+            document.getElementById('LTotalVal').innerText = L_total.toFixed(0);
+            document.getElementById('omegaFinalVal').innerText = finalOmega.toFixed(3);
+            if(!simulando) dibujar(); 
+        }
+
+        function dibujarFlechaLinear(fromX, fromY, toX, toY, color, etiqueta, dx, dy, width) {
+            if (!mostrarVectores) return;
+            const headlen = 8; 
+            const angle = Math.atan2(dy, dx);
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(toX, toY);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.fillStyle = color;
+            ctx.font = "bold 15px Arial";
+            ctx.fillText(etiqueta, toX + 5, toY + (dy > 0 ? 15 : -5));
+        }
+
+        function dibujarCM(x, y) {
+            const size = 12;
+            ctx.beginPath();
+            ctx.moveTo(x - size, y);
+            ctx.lineTo(x + size, y);
+            ctx.moveTo(x, y - size);
+            ctx.lineTo(x, y + size);
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = "bold 13px Arial";
+            ctx.fillText("CM", x + size, y - size);
+        }
+
+        function dibujarDisco(x, y, radio, color, alpha, outlineColor) {
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.arc(x, y, radio, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = outlineColor;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // Dibuja una marca diametral que gira sobre el disco para visualizar su espín propio (wA = V/R, antihorario -> ángulo negativo en canvas)
+        function dibujarIndicadorEspin(x, y, radio, angulo, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angulo);
+            ctx.beginPath();
+            ctx.moveTo(-radio + 4, 0);
+            ctx.lineTo(radio - 4, 0);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(-radio + 4, 0);
+            ctx.lineTo(radio - 4, 0);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(radio - 4, 0, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function dibujarDiscoConVector(x, y, radio, color, outlineColor) {
+            dibujarDisco(x, y, radio, color, 0.1, outlineColor);
+            dibujarCM(x, y);
+            dibujarFlechaLinear(x, y, x + radio*2, y, color, 'v', 1, 0, 2);
+        }
+
+        function dibujar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (simulando) t += TIME_STEP; 
+
+            let A_x = startX_A + t * V;
+            let A_y = height / 2;
+            let current_vCM_x, current_vCM_y;
+            current_vCM_x = (startX_A + B_x) / 2 + t * vCM;
+            current_vCM_y = B_y - R / 2;
+            // Ángulo de espín propio de A (wA = V/R, antihorario -> signo negativo en canvas).
+            // Escala visual moderada (no la misma que postCollisionAngle) para que se vea como un giro fluido y no un parpadeo.
+            let spinAngleA = -t * (V / R) * 8;
+            
+            let p_A_x = M * V;
+            let p_total_x = p_A_x;
+
+            document.getElementById('vAVal').innerText = `(${(collisionDetected ? 0 : V).toFixed(1)}, 0.0)`;
+            document.getElementById('vCMVal').innerText = `(${vCM.toFixed(1)}, 0.0)`;
+            document.getElementById('pAVal').innerText = `(${p_A_x.toFixed(1)}, 0.0)`;
+            document.getElementById('pTotalVal').innerText = `(${p_total_x.toFixed(1)}, 0.0)`;
+
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#666';
+            ctx.font = "13px Arial";
+            ctx.fillText("Recta de movimiento de A", 20, height / 2 - 5);
+
+            if (!collisionDetected) {
+                // Estado: Setup inicial o Pre-choque animado
+                if (t == 0) {
+                    dibujarDiscoConVector(startX_A, height / 2, R, '#e74c3c', '#c0392b');
+                    if (rotacionAActiva) dibujarIndicadorEspin(startX_A, height / 2, R, spinAngleA, '#7f1d1d');
+                    dibujarDiscoConVector(B_x, B_y, R, '#3498db', '#2980b9');
+                    ctx.fillStyle = '#3498db';
+                    ctx.font = "bold 13px Arial";
+                    ctx.fillText("v_B=0", B_x + R*2 + 5, B_y + 5);
+                } else {
+                    dibujarDisco(A_x, A_y, R, '#e74c3c', rotacionAActiva ? 0.35 : 0.2, '#c0392b'); 
+                    if (rotacionAActiva) dibujarIndicadorEspin(A_x, A_y, R, spinAngleA, '#7f1d1d');
+                    dibujarDisco(B_x, B_y, R, '#3498db', 0.2, '#2980b9'); 
+                    dibujarCM(current_vCM_x, current_vCM_y); 
+                    
+                    const ScaleFactor = 25; 
+                    dibujarFlechaLinear(A_x, A_y, A_x + V * ScaleFactor, A_y, '#c0392b', 'V_A', V, 0, 2);
+                    let pScale = 20 / M; 
+                    dibujarFlechaLinear(A_x, A_y + 10, A_x + p_A_x * pScale, A_y + 10, '#f1c40f', 'p_A', p_A_x, 0, 4);
+                    dibujarFlechaLinear(current_vCM_x, current_vCM_y + 10, current_vCM_x + p_total_x * pScale, current_vCM_y + 10, '#2c3e50', 'p_total', p_total_x, 0, 4);
+                }
+
+                let dx = B_x - A_x;
+                let dy = B_y - A_y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist <= 2 * R + 0.5) { 
+                    collisionDetected = true;
+                    t_collision = t;
+                    if (pauseOnCollision) iniciarOpausar();
+                    document.getElementById('estadoVal').innerText = "⚖️ ¡CHOQUE! (Análisis)";
+                    
+                    dibujarDisco(A_x, A_y, R, '#e74c3c', 1, '#c0392b');
+                    dibujarDisco(B_x, B_y, R, '#3498db', 1, '#2980b9');
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(A_x, A_y);
+                    ctx.lineTo(B_x, B_y);
+                    ctx.stroke();
+                    ctx.font = "bold 20px Arial";
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("COLISIÓN INELÁSTICA (stick together)", width/2, height - 20);
+                    ctx.textAlign = 'start'; 
+                }
+            } else {
+                document.getElementById('estadoVal').innerText = rotacionAActiva ? "Post-choque (Sin rotación — inciso c)" : "Post-choque (Rotando)";
+                
+                ctx.save();
+                ctx.translate(current_vCM_x, current_vCM_y);
+                postCollisionAngle = (t - t_collision) * finalOmega * 30; 
+                ctx.rotate(postCollisionAngle);
+                
+                const sqrt3R2 = R * Math.sqrt(3) / 2;
+                const R2 = R / 2;
+                const rel_A_x = -sqrt3R2;
+                const rel_A_y = -R2;
+                const rel_B_x = sqrt3R2;
+                const rel_B_y = R2;
+                
+                dibujarDisco(rel_A_x, rel_A_y, R, '#e74c3c', 1, '#c0392b');
+                dibujarDisco(rel_B_x, rel_B_y, R, '#3498db', 1, '#2980b9');
+                
+                ctx.beginPath();
+                ctx.moveTo(rel_A_x, rel_A_y);
+                ctx.lineTo(rel_B_x, rel_B_y);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                ctx.restore(); 
+
+                dibujarCM(current_vCM_x, current_vCM_y);
+                const ScaleFactor = 25; 
+                dibujarFlechaLinear(current_vCM_x, current_vCM_y, current_vCM_x + vCM * ScaleFactor, current_vCM_y, '#c0392b', 'V_CM', vCM, 0, 2);
+                let pScale = 20 / M; 
+                dibujarFlechaLinear(current_vCM_x, current_vCM_y + 10, current_vCM_x + p_total_x * pScale, current_vCM_y + 10, '#2c3e50', 'p_total', p_total_x, 0, 4);
+                dibujarFlechaLinear(current_vCM_x + R * 1.6, current_vCM_y - R * 0.2, current_vCM_x + R * 1.6, current_vCM_y + R * 0.2, '#2c3e50', 'w', 0, 1, 1);
+            }
+
+            document.getElementById('tiempoVal').innerText = t.toFixed(2);
+
+            if (simulando) {
+                if (!collisionDetected && A_x - R > width) {
+                    iniciarOpausar();
+                } else if (collisionDetected && current_vCM_x - 2 * R > width) {
+                    iniciarOpausar();
+                } else {
+                    animacion = requestAnimationFrame(dibujar);
+                }
+            }
+        }
+
+        function iniciarOpausar() {
+            const btnPause = document.getElementById('btnPause');
+            if (!simulando) {
+                simulando = true;
+                btnPause.innerText = "⏸ Pausar";
+                dibujar();
+            } else {
+                simulando = false;
+                btnPause.innerText = "▶ Continuar";
+                cancelAnimationFrame(animacion);
+            }
+        }
+
+        function reiniciar() {
+            simulando = false;
+            cancelAnimationFrame(animacion);
+            t = 0;
+            collisionDetected = false;
+            postCollisionAngle = 0;
+            document.getElementById('btnPause').innerText = "▶ Iniciar / ⏸ Pausar";
+            document.getElementById('estadoVal').innerText = "Setup Inicial";
+            actualizarVariables(); 
+            dibujar();
+        }
+
+        function toggleVectores() {
+            mostrarVectores = !mostrarVectores;
+            const btnVectors = document.getElementById('btnVectors');
+            btnVectors.innerText = mostrarVectores ? "Ocultar Vectores (On)" : "Mostrar Vectores (Off)";
+            if (!simulando) dibujar();
+        }
+
+        function setChoqueModo(modo) {
+            pauseOnCollision = (modo === 'pause');
+            document.getElementById('btnPauseChoque').classList.toggle('btn-active', pauseOnCollision);
+            document.getElementById('btnContinueChoque').classList.toggle('btn-active', !pauseOnCollision);
+        }
+
+        actualizarVariables(); 
+    </script>
+</body>
+</html>

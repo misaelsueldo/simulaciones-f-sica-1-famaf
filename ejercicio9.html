@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador ejercicio 9 guia 9</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background-color: #eef2f3; 
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; margin-top: 0; font-style: italic; }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        canvas { 
+            border: 2px solid #bdc3c7; 
+            background-color: #fcfcfc; 
+            border-radius: 8px;
+            margin-top: 15px; 
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 15px;
+            text-align: left;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        button { 
+            padding: 10px 15px; 
+            font-size: 14px; 
+            font-weight: bold;
+            cursor: pointer; 
+            margin: 5px 2px; 
+            border: none;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: white;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        button.btn-red { background-color: #e74c3c; }
+        button.btn-red:hover { background-color: #c0392b; }
+
+        input[type=range] { width: 100%; margin-top: 10px; }
+        
+        .data-panel { 
+            margin-top: 15px; 
+            font-size: 16px; 
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Simulador ejercicio 9 guia 9</h1>
+        <p class="subtitle">Fuerzas y cinemática en tiempo real</p>
+        
+        <div class="controls-grid">
+            <div class="control-group">
+                <h3>🕹️ Controles de Tiempo</h3>
+                <button onclick="iniciar()">▶ Iniciar</button>
+                <button onclick="pausar()">⏸ Pausar</button>
+                <button class="btn-red" onclick="reiniciar()">🔄 Reiniciar</button>
+            </div>
+            <div class="control-group">
+                <h3>⚖️ Variables Físicas</h3>
+                <label for="massSlider">Masa de los cilindros (M): <span id="massValue">10</span> kg</label>
+                <input type="range" id="massSlider" min="1" max="50" value="10" oninput="actualizarMasa()">
+                <br><small style="color:#666;">Modificá la masa para alterar la Tensión (T) y el Peso (Mg)</small>
+            </div>
+        </div>
+
+        <div class="data-panel">
+            <span>⏱️ t: <span id="tiempo">0.00</span> s</span>
+            <span>⬇️ V_cm: <span id="velocidad">0.00</span> m/s</span>
+            <span>⚡ a_cm: 0.8g (Constante)</span>
+            <span>🔗 Tensión: <span id="tensionVal">19.6</span> N</span>
+        </div>
+
+        <canvas id="canvasSim" width="500" height="600"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvasSim');
+        const ctx = canvas.getContext('2d');
+        
+        let t = 0;
+        let simulando = false;
+        let animacion;
+
+        // Variables Físicas Constantes
+        const g = 9.8; 
+        const a_cm = 0.8 * g; // 4/5 g
+        const R = 40; 
+        const x_centro = 250; 
+        const y_inicial_sup = 120; // Posición Y del cilindro de arriba
+        const y_inicial_inf = 260; // Posición Y inicial del cilindro de abajo (¡Acá está la separación!)
+
+        // Variables Dinámicas
+        let masa = 10;
+        let tension = (1/5) * masa * g;
+        let peso = masa * g;
+
+        function actualizarMasa() {
+            masa = document.getElementById('massSlider').value;
+            document.getElementById('massValue').innerText = masa;
+            tension = (1/5) * masa * g;
+            peso = masa * g;
+            document.getElementById('tensionVal').innerText = tension.toFixed(1);
+            if(!simulando) dibujar(); // Redibujar para mostrar vectores actualizados
+        }
+
+        function dibujarFlecha(fromX, fromY, toX, toY, color, etiqueta) {
+            const headlen = 10; 
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Cabeza de la flecha
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(toX, toY);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // Etiqueta
+            ctx.fillStyle = color;
+            ctx.font = "bold 16px Arial";
+            ctx.fillText(etiqueta, toX + 5, toY + (dy > 0 ? 15 : -5));
+        }
+
+        function dibujarCilindro(x, y, radio, angulo, mostrarFuerzas, esInferior) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Rotación visual
+            ctx.save();
+            ctx.rotate(angulo);
+            ctx.beginPath();
+            ctx.arc(0, 0, radio, 0, 2 * Math.PI);
+            ctx.fillStyle = '#b0bec5';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#263238';
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, radio * 0.3, 0, 2 * Math.PI);
+            ctx.fillStyle = '#78909c';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(radio, 0);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#2c3e50';
+            ctx.stroke();
+            ctx.restore();
+
+            // Dibujar Fuerzas encima del cilindro sin que roten
+            if (mostrarFuerzas) {
+                let escalaFuerza = 1.5; 
+                let largoTension = tension * escalaFuerza;
+                let largoPeso = peso * escalaFuerza;
+
+                if (esInferior) {
+                    // Vector Peso (desde el centro hacia abajo)
+                    dibujarFlecha(0, 0, 0, largoPeso, '#e74c3c', 'Mg');
+                    // Vector Tensión (desde el borde derecho hacia arriba)
+                    dibujarFlecha(radio, 0, radio, -largoTension, '#2980b9', 'T');
+                } else {
+                    // Cilindro superior: Tensión tira hacia abajo en el borde derecho
+                    dibujarFlecha(radio, 0, radio, largoTension, '#2980b9', 'T');
+                }
+            }
+            
+            ctx.restore();
+        }
+
+        function dibujar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let tiempoVisual = t * 2.5; 
+            let desplazamientoY = 0.5 * a_cm * Math.pow(tiempoVisual, 2) * 5; 
+            let y_inferior = y_inicial_inf + desplazamientoY; // Arranca desde más abajo
+            let anguloTheta = desplazamientoY / (2 * R); 
+
+            // Techo y Soporte
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(100, 20, 300, 20);
+            ctx.beginPath();
+            ctx.moveTo(250, 40);
+            ctx.lineTo(230, y_inicial_sup);
+            ctx.lineTo(270, y_inicial_sup);
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fill();
+
+            // Cuerda
+            let x_cuerda = x_centro + R; 
+            ctx.beginPath();
+            ctx.moveTo(x_cuerda, y_inicial_sup);
+            ctx.lineTo(x_cuerda, y_inferior);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#34495e';
+            ctx.stroke();
+
+            // Dibujar Cilindros y sus fuerzas
+            dibujarCilindro(x_centro, y_inicial_sup, R, anguloTheta, true, false);
+            dibujarCilindro(x_centro, y_inferior, R, anguloTheta, true, true);
+
+            // Actualizar datos de movimiento
+            let v_cm = a_cm * tiempoVisual;
+            document.getElementById('tiempo').innerText = tiempoVisual.toFixed(2);
+            document.getElementById('velocidad').innerText = v_cm.toFixed(2);
+
+            if (simulando) {
+                t += 0.016; 
+                if (y_inferior + R < canvas.height - 40) {
+                    animacion = requestAnimationFrame(dibujar);
+                } else {
+                    simulando = false; 
+                }
+            }
+        }
+
+        function iniciar() {
+            if (!simulando) {
+                simulando = true;
+                dibujar();
+            }
+        }
+
+        function pausar() {
+            simulando = false;
+            cancelAnimationFrame(animacion);
+        }
+
+        function reiniciar() {
+            simulando = false;
+            cancelAnimationFrame(animacion);
+            t = 0;
+            dibujar();
+        }
+
+        // Init
+        actualizarMasa();
+    </script>
+</body>
+</html>
