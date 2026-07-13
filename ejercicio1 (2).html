@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Virtual: Disco Pendular (Problema 1)</title>
+
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background-color: #f0f3f5; 
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; margin-top: 0; font-style: italic; margin-bottom: 25px;}
+
+        /* Layout del Simulador: canvas arriba, paneles de control en grilla debajo */
+        .simulator-layout { margin-bottom: 30px; }
+        .canvas-column { text-align: center; margin-bottom: 20px; }
+        canvas {
+            border: 2px solid #bdc3c7;
+            background-color: #fcfcfc;
+            border-radius: 8px;
+            display: block;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+            text-align: left;
+        }
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .control-group h3 { margin-top: 0; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #dee2e6; padding-bottom: 5px;}
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px 2px;
+            border: none;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: white;
+            transition: all 0.3s;
+        }
+        button:hover { background-color: #2980b9; transform: scale(1.03); }
+        button.btn-red { background-color: #e74c3c; }
+        button.btn-red:hover { background-color: #c0392b; }
+        button.btn-active { background-color: #2c3e50; border: 2px solid #3498db;}
+
+        input[type=range] { width: 100%; margin-top: 10px; cursor: pointer;}
+        .data-list { list-style: none; padding: 0; font-size: 14px; }
+        .data-list li { margin: 8px 0; border-bottom: 1px solid #eee; padding-bottom: 3px;}
+        .data-label { font-weight: bold; color: #555;}
+        .nota-masa { font-size: 12px; color: #888; margin-top: 6px; }
+
+        .full-divisor {
+            border: 0;
+            height: 2px;
+            background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.75), rgba(0,0,0,0));
+            margin: 30px 0;
+        }
+
+        .study-guide { text-align: left; }
+        .enunciado-column {
+            background-color: #eaf2f8;
+            padding: 20px 25px;
+            border-left: 5px solid #3498db;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .enunciado-column h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+        .enunciado-column ul { margin-bottom: 0; padding-left: 22px; }
+        .enunciado-column li { margin-bottom: 6px; }
+        .resolucion-column { font-size: 16px; line-height: 1.6; }
+        .resolucion-column p { margin-top: 0; }
+        .math { font-family: 'Times New Roman', Times, serif; font-size: 1.1em; font-style: italic; }
+        .resultado-final {
+            background-color: #eafaf1;
+            border-left: 5px solid #27ae60;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .aviso {
+            background-color: #fef9e7;
+            border-left: 5px solid #f1c40f;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+    </style>
+
+    <!-- MathJax para renderizar las fórmulas (sin polyfill.io: ese CDN está comprometido) -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Simulador Problema 1: Disco Pendular</h1>
+        <p class="subtitle">Laboratorio Virtual — Péndulo Físico (Rotación alrededor de un eje fijo)</p>
+
+        <!-- ZONA DEL SIMULADOR -->
+        <div class="simulator-layout">
+            <div class="canvas-column">
+                <canvas id="canvasSim" width="900" height="600"></canvas>
+                <p style="font-size:12px;color:#666;">El disco se suelta desde el reposo con su centro a la misma altura que A (θ=90°) y oscila libremente, sin rozamiento.</p>
+            </div>
+
+            <div class="controls-grid">
+                <div class="control-group">
+                    <h3>🕹️ Controles de Simulación</h3>
+                    <button onclick="iniciarOpausar()" id="btnPause" class="btn-active">▶ Iniciar / ⏸ Pausar</button>
+                    <button class="btn-red" onclick="reiniciar()">🔄 Reiniciar</button>
+                    <button class="btn-active" id="btnVectors" onclick="toggleVectores()">Vectores On/Off</button>
+                    <button class="btn-active" id="btnFuerzas" onclick="toggleFuerzas()">Fuerzas On/Off</button>
+                </div>
+                <div class="control-group">
+                    <h3>⚖️ Variables Físicas</h3>
+                    <label>Radio R: <span id="radiusValue" class="data-label">0.50</span> m</label>
+                    <input type="range" id="radiusSlider" min="0.3" max="1.0" step="0.01" value="0.5" oninput="actualizarVariables()">
+
+                    <label>Gravedad g: <span id="gValue" class="data-label">9.8</span> m/s²</label>
+                    <input type="range" id="gSlider" min="1" max="20" step="0.1" value="9.8" oninput="actualizarVariables()">
+
+                    <label>Masa M (referencial): <span id="massValue" class="data-label">1.0</span> kg</label>
+                    <input type="range" id="massSlider" min="0.5" max="5" step="0.1" value="1" oninput="actualizarVariables()">
+                    <p class="nota-masa">La masa no afecta el movimiento: se cancela en todas las fórmulas. Solo se usa para calcular el torque e I<sub>A</sub> en el panel de datos.</p>
+                </div>
+                <div class="control-group">
+                    <h3>📊 Datos en Tiempo Real</h3>
+                    <ul class="data-list">
+                        <li>⏱️ t: <span id="tiempoVal">0.00</span> s</li>
+                        <li>📐 θ (desde vertical): <span id="thetaVal">90.0</span>°</li>
+                        <li>🔄 ω (angular): <span id="omegaVal">0.000</span> rad/s</li>
+                        <li>⚡ α (angular): <span id="alphaVal">0.000</span> rad/s²</li>
+                        <li><span style="color:#c0392b;">v_B (tangencial):</span> <span id="vBVal">0.000</span> m/s</li>
+                        <li><span style="color:#2c3e50;">a_B tangencial:</span> <span id="aBTanVal">0.000</span> m/s²</li>
+                        <li>➰ a_B centrípeta: <span id="aBCentVal">0.000</span> m/s²</li>
+                        <li>🌀 I_A: <span id="IAVal">0.000</span> kg·m²</li>
+                        <li>⚖️ Peso (Mg): <span id="pesoVal">0.000</span> N</li>
+                        <li>📌 Reacción en A: <span id="reaccionVal">0.000</span> N</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <hr class="full-divisor">
+
+        <h2>Guía de Estudio Interactiva (Problema 1)</h2>
+        <div class="study-guide">
+            <div class="enunciado-column">
+                <h3>📝 Boceto y Enunciado</h3>
+                <p>Un disco macizo, de masa <span class="math">M</span>, radio <span class="math">R</span> y espesor <span class="math">e</span>, cuelga de una pared a través de un eje que pasa por el punto <strong>A</strong> de su circunferencia, alrededor del cual puede girar sin rozamiento. El disco se suelta cuando su centro está colocado a la misma altura que el punto <strong>A</strong>.</p>
+                <ul>
+                    <li><strong>a)</strong> ¿Cuál es la aceleración tangencial del punto <strong>B</strong>, ubicado diametralmente opuesto al punto <strong>A</strong>, inmediatamente después de ponerse en movimiento el disco?</li>
+                    <li><strong>b)</strong> ¿Cuánto vale la velocidad del punto <strong>B</strong> cuando pasa por el punto más bajo de su trayectoria?</li>
+                    <li><strong>c)</strong> ¿Cuál es la aceleración tangencial del punto <strong>B</strong> en función de la posición del disco?</li>
+                </ul>
+            </div>
+
+            <div class="resolucion-column">
+                <h3>Resolución (tu método: DCL + Steiner + ΣΤ = I<sub>A</sub>α)</h3>
+
+                <h4>1. Diagrama de cuerpo libre y momento de inercia</h4>
+                <p>Sobre el disco actúan dos fuerzas: el peso \(M\vec g\), aplicado en el centro, y la reacción del vínculo en \(A\) (que no genera torque respecto de \(A\), porque su brazo de palanca es nulo). Como el eje de giro pasa por \(A\), usamos el teorema de Steiner para llevar el momento de inercia del centro al punto \(A\):</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ I_A = I_{cm} + MR^2 $$
+                </div>
+                <p>Y planteamos la ecuación de momentos respecto a \(A\) (el disco gira en torno a un eje fijo, así que \(\Sigma\vec\tau = I_A\,\vec\alpha\)):</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ \vec\tau = \vec r \times (M\vec g) \quad\Rightarrow\quad (I_{cm}+MR^2)\,\alpha = r\,Mg $$
+                </div>
+
+                <h4>2. Inciso a) — Aceleración tangencial de B al soltar el disco</h4>
+                <p>En el instante inicial el brazo de palanca del peso es máximo (\(r=R\), perpendicular al peso), y \(I_{cm}=\tfrac12MR^2\):</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ \left(\frac12MR^2+MR^2\right)\alpha = R\,Mg \;\Rightarrow\; \frac32MR^2\,\alpha = RMg \;\Rightarrow\; \alpha=\frac{2g}{3R} $$
+                </div>
+                <p>(la masa se cancela, como en cualquier péndulo). Como B está diametralmente opuesto a A, su distancia al eje es \(r_B=2R\), así que:</p>
+                <p class="resultado-final">$$ a_{t,B} = r_B\,\alpha = 2R\cdot\frac{2g}{3R} = \frac{4g}{3} $$</p>
+
+                <h4>3. Inciso b) — Velocidad de B en el punto más bajo</h4>
+                <p>El disco se suelta desde el reposo, y la reacción en A no trabaja (su punto de aplicación no se desplaza, \(d\vec r_A=\vec 0\)). Como el peso es una fuerza conservativa, se conserva la energía mecánica. Tomando el nivel de referencia \(h=0\) en el punto más bajo del centro de masa:</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ E = \frac12 M v_{cm}^2 + \frac12 I_{cm}\,\omega^2 + V $$
+                </div>
+                <p>Como el movimiento es de rotación pura alrededor de A, \(v_{cm}=\omega R\), así que la energía cinética se puede reescribir directamente con \(I_A\) (parallel axis, otra vez):</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ E_i = MgR \qquad E_f = \frac12\left(I_{cm}+MR^2\right)\omega^2 = \frac12 I_A\,\omega^2 $$
+                </div>
+                <p>Igualando \(E_i=E_f\):</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ MgR = \frac12\cdot\frac32MR^2\,\omega^2 \;\Rightarrow\; \omega = \sqrt{\frac{4g}{3R}} $$
+                </div>
+                <p>Y como \(v_B=r_B\,\omega=2R\,\omega\):</p>
+                <p class="resultado-final">$$ v_B = 2R\sqrt{\frac{4g}{3R}} = 4\sqrt{\frac{gR}{3}} $$</p>
+
+                <h4>4. Inciso c) — Aceleración tangencial de B en función de la posición</h4>
+                <p>Repetimos el planteo del punto 1, pero ahora para un ángulo genérico \(\theta\) entre \(\vec r\) (de A al centro) y el peso. Tomando módulos, \(|\vec\tau| = |\vec r||M\vec g|\,\text{sen}\,\theta\):</p>
+                <div style="overflow-x:auto;padding:10px 0;">
+                    $$ \frac32MR^2\,\alpha = RMg\,\text{sen}\,\theta \;\Rightarrow\; \alpha(\theta) = \frac{2g}{3R}\,\text{sen}\,\theta $$
+                </div>
+                <p class="resultado-final">$$ a_{t,B}(\theta) = 2R\,\alpha(\theta) = \frac{4g}{3}\,\text{sen}\,\theta $$</p>
+                <p>Contiene al inciso a) como caso particular (\(\theta=90°\)), y es exactamente lo que grafica el simulador en tiempo real — junto con los vectores de peso y reacción en el pivote, que podés activar con el botón "Fuerzas".</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DEL SIMULADOR -->
+    <script>
+        const canvas = document.getElementById('canvasSim');
+        const ctx = canvas.getContext('2d');
+
+        let simulando = false;
+        let animacion;
+        let mostrarVectores = true;
+        let mostrarFuerzas = true;
+
+        let R = 0.5;      // metros
+        let g = 9.8;       // m/s^2
+        let M = 1.0;       // kg (referencial, no afecta la dinámica)
+
+        let theta = Math.PI / 2; // rad, medido desde la vertical (0 = equilibrio)
+        let omega = 0;            // rad/s
+        let t = 0;                // s
+
+        const PX_POR_METRO = 220;
+        const A_screen = { x: 450, y: 130 };
+
+        const DT = 1 / 300;   // paso de integración (s)
+        const SUBSTEPS = 5;   // 5 * DT ≈ 1/60 s por frame -> tiempo real
+
+        function actualizarVariables() {
+            R = parseFloat(document.getElementById('radiusSlider').value);
+            document.getElementById('radiusValue').innerText = R.toFixed(2);
+            g = parseFloat(document.getElementById('gSlider').value);
+            document.getElementById('gValue').innerText = g.toFixed(1);
+            M = parseFloat(document.getElementById('massSlider').value);
+            document.getElementById('massValue').innerText = M.toFixed(1);
+            if (!simulando) dibujar();
+        }
+
+        function alphaDe(th) {
+            return -(2 * g) / (3 * R) * Math.sin(th);
+        }
+
+        function pasoFisico() {
+            for (let i = 0; i < SUBSTEPS; i++) {
+                const a = alphaDe(theta);
+                omega += a * DT;
+                theta += omega * DT;
+                t += DT;
+            }
+        }
+
+        function dibujarPivote(x, y) {
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#2c3e50';
+            ctx.fill();
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillText("A", x - 22, y + 5);
+        }
+
+        function dibujarFlecha(fromX, fromY, toX, toY, color, etiqueta) {
+            const headlen = 9;
+            const dx = toX - fromX, dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.font = "bold 14px Arial";
+            ctx.fillStyle = color;
+            ctx.fillText(etiqueta, toX + 6, toY);
+        }
+
+        function dibujar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const Rpx = R * PX_POR_METRO;
+            const Cx = A_screen.x + Rpx * Math.sin(theta);
+            const Cy = A_screen.y + Rpx * Math.cos(theta);
+            const Bx = A_screen.x + 2 * Rpx * Math.sin(theta);
+            const By = A_screen.y + 2 * Rpx * Math.cos(theta);
+
+            // Trayectorias (círculos punteados) del centro y de B
+            ctx.setLineDash([4, 6]);
+            ctx.strokeStyle = '#cfd8dc';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(A_screen.x, A_screen.y, Rpx, 0, 2 * Math.PI); ctx.stroke();
+            ctx.beginPath(); ctx.arc(A_screen.x, A_screen.y, 2 * Rpx, 0, 2 * Math.PI); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Línea vertical de referencia (equilibrio, theta = 0)
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(A_screen.x, A_screen.y);
+            ctx.lineTo(A_screen.x, A_screen.y + 2 * Rpx + 20);
+            ctx.stroke();
+
+            // Disco (posición inicial de referencia, tenue)
+            ctx.globalAlpha = 0.15;
+            ctx.beginPath();
+            ctx.arc(A_screen.x + Rpx, A_screen.y, Rpx, 0, 2 * Math.PI);
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Disco actual
+            ctx.beginPath();
+            ctx.arc(Cx, Cy, Rpx, 0, 2 * Math.PI);
+            ctx.fillStyle = '#95a5a6';
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#616a6b';
+            ctx.stroke();
+
+            // Línea A - centro - B (diámetro)
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(A_screen.x, A_screen.y);
+            ctx.lineTo(Bx, By);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Centro del disco
+            ctx.beginPath();
+            ctx.arc(Cx, Cy, 3, 0, 2 * Math.PI);
+            ctx.fillStyle = '#2c3e50';
+            ctx.fill();
+
+            // Punto B
+            ctx.beginPath();
+            ctx.arc(Bx, By, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fill();
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillText("B", Bx + 10, By - 8);
+
+            // Pivote A (encima de todo)
+            dibujarPivote(A_screen.x, A_screen.y);
+
+            // Vectores en B: velocidad tangencial y aceleración tangencial
+            if (mostrarVectores) {
+                const dirX = Math.cos(theta), dirY = -Math.sin(theta); // tangente unitaria (sentido de theta creciente)
+                const vB = omega * 2 * Rpx;      // px/s (escala visual, proporcional a omega real)
+                const aB = alphaDe(theta) * 2 * Rpx;
+
+                const escalaV = 0.4;
+                const escalaA = 0.15;
+
+                if (Math.abs(vB) > 1) {
+                    dibujarFlecha(Bx, By, Bx + dirX * vB * escalaV, By + dirY * vB * escalaV, '#27ae60', 'v_B');
+                }
+                if (Math.abs(aB) > 1) {
+                    dibujarFlecha(Bx, By, Bx + dirX * aB * escalaA, By + dirY * aB * escalaA, '#8e44ad', 'a_B,tan');
+                }
+            }
+
+            // Fuerzas: peso (en el centro) y reacción vincular (en el pivote A)
+            // Newton 2do ley sobre el CM: N + W = M*a_cm  =>  N = M*a_cm - W
+            const alpha_actual = alphaDe(theta);
+            const tanUnitX = Math.cos(theta), tanUnitY = -Math.sin(theta);   // tangente (misma que arriba)
+            const radUnitX = Math.sin(theta), radUnitY = Math.cos(theta);    // de A hacia C
+            const aCM_x = R * alpha_actual * tanUnitX - R * omega * omega * radUnitX;
+            const aCM_y = R * alpha_actual * tanUnitY - R * omega * omega * radUnitY;
+            const Nx = M * aCM_x;
+            const Ny = M * aCM_y - M * g; // resto el peso (0, Mg) del lado derecho
+            const pesoN = M * g;
+            const reaccionN = Math.sqrt(Nx * Nx + Ny * Ny);
+
+            if (mostrarFuerzas) {
+                const escalaF = 60 / Math.max(pesoN, 0.01); // px por Newton, calibrado para que el peso mida ~60px siempre
+                // Peso: desde el centro del disco, hacia abajo
+                dibujarFlecha(Cx, Cy, Cx, Cy + pesoN * escalaF, '#d35400', 'Mg');
+                // Reacción: desde el pivote A, en la dirección real de N
+                if (reaccionN > 0.05) {
+                    dibujarFlecha(A_screen.x, A_screen.y, A_screen.x + Nx * escalaF, A_screen.y + Ny * escalaF, '#16a085', 'N');
+                }
+            }
+
+            // Panel de datos
+            const IA = 1.5 * M * R * R;
+            const alpha_now = alphaDe(theta);
+            const vB_real = omega * 2 * R;
+            const aBTan_real = alpha_now * 2 * R;
+            const aBCent_real = omega * omega * 2 * R;
+
+            document.getElementById('tiempoVal').innerText = t.toFixed(2);
+            document.getElementById('thetaVal').innerText = (theta * 180 / Math.PI).toFixed(1);
+            document.getElementById('omegaVal').innerText = omega.toFixed(3);
+            document.getElementById('alphaVal').innerText = alpha_now.toFixed(3);
+            document.getElementById('vBVal').innerText = vB_real.toFixed(3);
+            document.getElementById('aBTanVal').innerText = aBTan_real.toFixed(3);
+            document.getElementById('aBCentVal').innerText = aBCent_real.toFixed(3);
+            document.getElementById('IAVal').innerText = IA.toFixed(3);
+            document.getElementById('pesoVal').innerText = pesoN.toFixed(3);
+            document.getElementById('reaccionVal').innerText = reaccionN.toFixed(3);
+        }
+
+        function loop() {
+            if (!simulando) return;
+            pasoFisico();
+            dibujar();
+            animacion = requestAnimationFrame(loop);
+        }
+
+        function iniciarOpausar() {
+            const btnPause = document.getElementById('btnPause');
+            if (!simulando) {
+                simulando = true;
+                btnPause.innerText = "⏸ Pausar";
+                loop();
+            } else {
+                simulando = false;
+                btnPause.innerText = "▶ Continuar";
+                cancelAnimationFrame(animacion);
+            }
+        }
+
+        function reiniciar() {
+            simulando = false;
+            cancelAnimationFrame(animacion);
+            theta = Math.PI / 2;
+            omega = 0;
+            t = 0;
+            document.getElementById('btnPause').innerText = "▶ Iniciar / ⏸ Pausar";
+            dibujar();
+        }
+
+        function toggleVectores() {
+            mostrarVectores = !mostrarVectores;
+            const btnVectors = document.getElementById('btnVectors');
+            btnVectors.innerText = mostrarVectores ? "Ocultar Vectores (On)" : "Mostrar Vectores (Off)";
+            if (!simulando) dibujar();
+        }
+
+        function toggleFuerzas() {
+            mostrarFuerzas = !mostrarFuerzas;
+            const btnFuerzas = document.getElementById('btnFuerzas');
+            btnFuerzas.innerText = mostrarFuerzas ? "Ocultar Fuerzas (On)" : "Mostrar Fuerzas (Off)";
+            if (!simulando) dibujar();
+        }
+
+        actualizarVariables();
+    </script>
+</body>
+</html>
